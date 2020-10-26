@@ -36,10 +36,6 @@ exports[`Nav should render with no props passed 1`] = `
           "name": "Podcast",
         },
         Object {
-          "href": "/who_we_serve",
-          "name": "Who We Serve",
-        },
-        Object {
           "href": "/events",
           "name": "Events",
         },
@@ -50,10 +46,6 @@ exports[`Nav should render with no props passed 1`] = `
         Object {
           "href": "/sponsorship",
           "name": "Sponsorship",
-        },
-        Object {
-          "href": "/leadership_circle",
-          "name": "Leadership Circle",
         },
       ]
     }
@@ -74,6 +66,7 @@ exports[`Nav should render with no props passed 1`] = `
         >
           <a
             className="logoLink link"
+            onContextMenu={[Function]}
           >
             <img
               alt="Operation Code Logo"
@@ -125,10 +118,6 @@ exports[`Nav should render with no props passed 1`] = `
                 Object {
                   "href": "/sponsorship",
                   "name": "Sponsorship",
-                },
-                Object {
-                  "href": "/leadership_circle",
-                  "name": "Leadership Circle",
                 },
               ]
             }

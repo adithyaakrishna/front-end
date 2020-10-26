@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { string, number, func, oneOf, oneOfType, array, bool } from 'prop-types';
 import classNames from 'classnames';
 import Accordion from 'components/Accordion/Accordion';
@@ -25,11 +25,11 @@ ResourceCard.propTypes = {
   downvotes: number,
   href: string.isRequired,
   name: string.isRequired,
+  id: number.isRequired,
   category: string,
   languages: oneOfType([string, array]),
-  isPaid: bool,
-  onDownvote: func,
-  onUpvote: func,
+  isFree: bool,
+  handleVote: func,
   upvotes: number,
   userVote: oneOf(Object.values(possibleUserVotes)),
 };
@@ -39,9 +39,8 @@ ResourceCard.defaultProps = {
   downvotes: 0,
   category: '',
   languages: [],
-  isPaid: false,
-  onDownvote: () => {},
-  onUpvote: () => {},
+  isFree: false,
+  handleVote: () => {},
   upvotes: 0,
   userVote: possibleUserVotes.none,
 };
@@ -53,69 +52,79 @@ function ResourceCard({
   name,
   category,
   languages,
-  isPaid,
-  onDownvote,
-  onUpvote,
+  isFree,
+  handleVote,
   upvotes,
   userVote,
+  id,
 }) {
+  const [upVotes, setUpVotes] = useState(upvotes);
+  const [downVotes, setDownVotes] = useState(downvotes);
   const didUpvote = userVote === possibleUserVotes.upvote;
   const didDownvote = userVote === possibleUserVotes.downvote;
 
+  const DESKTOP_VOTING_BLOCK = 'desktopVotingBlock';
+
   // Sync IDs with stylesheet
   // eslint-disable-next-line react/prop-types
-  const VotingBlock = ({ id }) => (
-    <div className={classNames(styles.votingBlock, styles[id])}>
-      <span className={styles.votingBlockHeader}>Useful?</span>
+  const VotingBlock = ({ blockID, resourceID }) => {
+    const onVote = voteDirection => handleVote(voteDirection, resourceID, setUpVotes, setDownVotes);
+    const onUpvote = () => onVote('upvote');
+    const onDownvote = () => onVote('downvote');
 
-      <div className={styles.voteInfo}>
-        <button
-          className={classNames(styles.voteButton, { [styles.active]: didUpvote })}
-          aria-pressed={didUpvote}
-          data-testid={UPVOTE_BUTTON}
-          onClick={onUpvote}
-          type="button"
-        >
-          <ScreenReaderOnly>Yes</ScreenReaderOnly>
-          <ThumbsUp
-            className={classNames(styles.icon, {
-              [styles.active]: didUpvote,
-            })}
-          />
+    return (
+      <div className={classNames(styles.votingBlock, styles[blockID])}>
+        <span className={styles.votingBlockHeader}>Useful?</span>
 
-          <span
-            aria-live="polite"
-            className={classNames(styles.voteCount, { [styles.active]: didUpvote })}
+        <div className={styles.voteInfo}>
+          <button
+            className={classNames(styles.voteButton, { [styles.active]: didUpvote })}
+            aria-pressed={didUpvote}
+            data-testid={blockID === DESKTOP_VOTING_BLOCK ? UPVOTE_BUTTON : undefined}
+            onClick={onUpvote}
+            type="button"
           >
-            <ScreenReaderOnly>Number of upvotes:</ScreenReaderOnly>
-            {upvotes.toString()}
-          </span>
-        </button>
-      </div>
+            <ScreenReaderOnly>Yes</ScreenReaderOnly>
+            <ThumbsUp
+              className={classNames(styles.icon, {
+                [styles.active]: didUpvote,
+              })}
+            />
 
-      <div className={styles.voteInfo}>
-        <button
-          className={classNames(styles.voteButton, { [styles.active]: didDownvote })}
-          aria-pressed={didDownvote}
-          data-testid={DOWNVOTE_BUTTON}
-          onClick={onDownvote}
-          type="button"
-        >
-          <ScreenReaderOnly>No</ScreenReaderOnly>
-          <ThumbsDown
-            className={classNames(styles.icon, {
-              [styles.active]: didDownvote,
-            })}
-          />
+            <span
+              aria-live="polite"
+              className={classNames(styles.voteCount, { [styles.active]: didUpvote })}
+            >
+              <ScreenReaderOnly>Number of upvotes:</ScreenReaderOnly>
+              {upVotes.toString()}
+            </span>
+          </button>
+        </div>
 
-          <span className={classNames(styles.voteCount, { [styles.active]: didDownvote })}>
-            <ScreenReaderOnly>Number of downvotes:</ScreenReaderOnly>
-            {downvotes.toString()}
-          </span>
-        </button>
+        <div className={styles.voteInfo}>
+          <button
+            className={classNames(styles.voteButton, { [styles.active]: didDownvote })}
+            aria-pressed={didDownvote}
+            data-testid={blockID === DESKTOP_VOTING_BLOCK ? DOWNVOTE_BUTTON : undefined}
+            onClick={onDownvote}
+            type="button"
+          >
+            <ScreenReaderOnly>No</ScreenReaderOnly>
+            <ThumbsDown
+              className={classNames(styles.icon, {
+                [styles.active]: didDownvote,
+              })}
+            />
+
+            <span className={classNames(styles.voteCount, { [styles.active]: didDownvote })}>
+              <ScreenReaderOnly>Number of downvotes:</ScreenReaderOnly>
+              {downVotes.toString()}
+            </span>
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Accordion
@@ -127,7 +136,7 @@ function ResourceCard({
             data-testid={RESOURCE_CARD}
             data-test-category={category}
             data-test-languages={languages.join('-')}
-            data-test-ispaid={isPaid}
+            data-test-isfree={isFree}
             className={styles.header}
           >
             <h5 data-testid={RESOURCE_TITLE} className={styles.resourceName}>
@@ -141,7 +150,7 @@ function ResourceCard({
               </OutboundLink>
             </h5>
 
-            <VotingBlock id="desktopVotingBlock" />
+            <VotingBlock blockID={DESKTOP_VOTING_BLOCK} resourceID={id} />
           </div>
         ),
         bodyChildren: (
@@ -157,7 +166,7 @@ function ResourceCard({
               </p>
             </div>
 
-            <VotingBlock id="mobileVotingBlock" />
+            <VotingBlock blockID="mobileVotingBlock" resourceID={id} />
           </div>
         ),
       }}

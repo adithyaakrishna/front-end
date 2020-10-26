@@ -5,7 +5,7 @@ import ReactModal from 'react-modal';
 import { gtag } from 'common/utils/thirdParty/gtag';
 import CardStyles from 'components/Cards/Card/Card.module.css';
 import CloseButton from 'components/Buttons/CloseButton/CloseButton';
-
+import { MODAL_CONTENT } from 'common/constants/testIDs';
 import ModalStyles from './Modal.module.css';
 
 Modal.propTypes = {
@@ -15,12 +15,14 @@ Modal.propTypes = {
   onRequestClose: func.isRequired,
   screenReaderLabel: string.isRequired, // basically a summarizing title
   shouldCloseOnOverlayClick: bool,
+  childrenClassName: string,
 };
 
 Modal.defaultProps = {
   className: undefined,
   isOpen: false,
   shouldCloseOnOverlayClick: true,
+  childrenClassName: undefined,
 };
 
 function Modal({
@@ -30,6 +32,7 @@ function Modal({
   onRequestClose,
   screenReaderLabel,
   shouldCloseOnOverlayClick,
+  childrenClassName,
 }) {
   if (isOpen) {
     gtag.modalView(screenReaderLabel);
@@ -45,7 +48,12 @@ function Modal({
       shouldCloseOnOverlayClick={shouldCloseOnOverlayClick}
     >
       <CloseButton onClick={onRequestClose} />
-      <div className={ModalStyles.scrollableContainer}>{children}</div>
+      <div
+        className={childrenClassName || ModalStyles.scrollableContainer}
+        data-testid={MODAL_CONTENT}
+      >
+        {children}
+      </div>
     </ReactModal>
   );
 }

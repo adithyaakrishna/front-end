@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import get from 'lodash/get';
 import isFinite from 'lodash/isFinite';
-import omit from 'lodash/omit';
 import Content from 'components/Content/Content';
 import Head from 'components/head';
 import HeroBanner from 'components/HeroBanner/HeroBanner';
@@ -12,30 +12,29 @@ import {
   getResourcesByCategories,
   getResourcesByLanguages,
   getResourcesBySearch,
+  loginUser,
+  updateResourceVoteCount,
 } from 'common/constants/api';
-import { Field, Formik } from 'formik';
+import { hasValidAuthToken, setAuthCookies } from 'common/utils/cookie-utils';
+import Modal from 'components/Modal/Modal';
+import LoginForm from 'components/Forms/LoginForm/LoginForm';
 import Alert from 'components/Alert/Alert';
-import Button from 'components/Buttons/Button/Button';
-import Form from 'components/Form/Form';
-import Input from 'components/Form/Input/Input';
 import OutboundLink from 'components/OutboundLink/OutboundLink';
 import ResourceCard from 'components/Cards/ResourceCard/ResourceCard';
 import ResourceSkeletonCard from 'components/Cards/ResourceCard/ResourceSkeletonCard';
-import Select from 'components/Form/Select/Select';
-import {
-  RESOURCE_CARD,
-  RESOURCE_SEARCH,
-  RESOURCE_SEARCH_BUTTON,
-  RESOURCE_RESET_BUTTON,
-} from 'common/constants/testIDs';
-import styles from '../styles/resources.module.css';
+import { RESOURCE_CARD } from 'common/constants/testIDs';
+import ModalStyles from 'components/Modal/Modal.module.css';
+import styles from 'styles/resources.module.css';
+import isUndefined from 'lodash/isUndefined';
+import ResourceSearchForm from 'components/Forms/ResourceSearchForm/ResourceSearchForm';
+import CardStyles from 'components/Cards/Card/Card.module.css';
 
 const pageTitle = 'Resources';
 
 function Resources() {
   const router = useRouter();
   const { pathname, query } = router;
-  const { page, category, languages, paid, q } = query;
+  const { page, category, languages, free, q } = query;
   const currentPage = parseInt(page, 10);
 
   if (page && !isFinite(currentPage)) {
@@ -49,46 +48,35 @@ function Resources() {
   const [totalPages, setTotalPages] = useState(currentPage);
   const [allCategories, setAllCategories] = useState([]);
   const [allLanguages, setAllLanguages] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const costOptions = [
-    { value: 'true', label: 'Paid' },
-    { value: 'false', label: 'Free' },
-  ];
+  const handleLogin = value => loginUser(value);
 
-  const initialValues = {
-    category: category || '',
-    q: q || '',
-    languages: Array.isArray(languages) ? languages : [languages].filter(Boolean),
-    paid: paid || '',
+  const handleLoginSuccess = ({ token }) => {
+    setAuthCookies({ token });
+  };
+
+  const handleVote = (voteDirection, id, setUpVotes, setDownVotes) => {
+    setErrorMessage(null);
+    if (!hasValidAuthToken()) {
+      setIsModalOpen(true);
+      return;
+    }
+    updateResourceVoteCount({ id, voteDirection })
+      .then(({ data: { resource } }) => {
+        setUpVotes(resource.upvotes);
+        setDownVotes(resource.downvotes);
+      })
+      .catch(() => {
+        setErrorMessage(`There was a problem ${voteDirection.slice(0, -1)}ing a resource.`);
+      });
   };
 
   const handleEndpoint = () => {
     if (q) {
-      return getResourcesBySearch({ page: page - 1, category, languages, paid, q });
+      return getResourcesBySearch({ page: page - 1, category, languages, free, q });
     }
-    return getResourcesPromise({ page, category, languages, paid });
-  };
-
-  const handleSubmit = (values, actions) => {
-    setIsLoading(true);
-    const emptyQueryParameters = Object.entries(values).filter(
-      item => item[1] === null || !item[1].length,
-    );
-    const activeParameters = omit(
-      values,
-      emptyQueryParameters.map(parameter => parameter[0]),
-    );
-
-    updateQuery(activeParameters);
-    setTimeout(() => {
-      actions.setSubmitting(false);
-    }, 500);
-  };
-
-  const handleReset = (values, actions) => {
-    setErrorMessage(null);
-    router.push(pathname, '/resources/1', { shallow: true });
-    actions.resetForm({ initialValues });
+    return getResourcesPromise({ page, category, languages, free });
   };
 
   useEffect(() => {
@@ -186,93 +174,19 @@ function Resources() {
             >
               Powered by Algolia
             </OutboundLink>
-
-            <Formik
-              enableReinitialize
-              initialValues={initialValues}
-              onSubmit={(values, actions) => {
-                handleSubmit(values, actions);
-                actions.setSubmitting(true);
+            <ResourceSearchForm
+              fields={{
+                languages,
+                category,
+                free,
+                q,
               }}
-              onReset={(values, actions) => {
-                handleReset(values, actions);
-              }}
-            >
-              {({ isSubmitting }) => (
-                <Form role="search">
-                  <Field
-                    hasValidationStyling={false}
-                    data-testid={RESOURCE_SEARCH}
-                    disabled={isSubmitting}
-                    type="search"
-                    name="q"
-                    label="Search Keywords"
-                    component={Input}
-                  />
-                  <div className={styles.formContainer}>
-                    <div className={styles.selectColumn}>
-                      <Field
-                        hasValidationStyling={false}
-                        isDisabled={isSubmitting}
-                        placeholder="Start typing a category..."
-                        label="By Category"
-                        name="category"
-                        options={allCategories}
-                        component={Select}
-                      />
-                    </div>
-
-                    <div className={styles.selectColumn}>
-                      <Field
-                        hasValidationStyling={false}
-                        isDisabled={isSubmitting}
-                        placeholder="Resource cost..."
-                        label="By Cost"
-                        name="paid"
-                        options={costOptions}
-                        component={Select}
-                      />
-                    </div>
-
-                    <div className={styles.selectColumn}>
-                      <Field
-                        hasValidationStyling={false}
-                        isDisabled={isSubmitting}
-                        placeholder="Start typing a language..."
-                        isMulti
-                        label="By Language(s)"
-                        name="languages"
-                        options={allLanguages}
-                        component={Select}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.buttonGroup}>
-                    <Button
-                      className={styles.buttonSingle}
-                      data-testid={RESOURCE_SEARCH_BUTTON}
-                      disabled={isSubmitting}
-                      theme="secondary"
-                      type="submit"
-                    >
-                      Search
-                    </Button>
-
-                    <Button
-                      className={styles.buttonSingle}
-                      data-testid={RESOURCE_RESET_BUTTON}
-                      disabled={isSubmitting}
-                      theme="secondary"
-                      type="reset"
-                    >
-                      Reset
-                    </Button>
-                  </div>
-                </Form>
-              )}
-            </Formik>
-
+              setIsLoading={setIsLoading}
+              updateQuery={updateQuery}
+              setErrorMessage={setErrorMessage}
+              allCategories={allCategories}
+              allLanguages={allLanguages}
+            />
             {isLoading ? (
               <ResourceSkeletonCard numberOfSkeletons={10} />
             ) : (
@@ -284,15 +198,17 @@ function Resources() {
                       {resources.map(resource => (
                         <ResourceCard
                           data-testid={RESOURCE_CARD}
+                          id={resource.id}
                           key={resource.id}
                           description={resource.notes}
                           downvotes={resource.downvotes}
                           upvotes={resource.upvotes}
+                          handleVote={handleVote}
                           href={resource.url || ''}
                           name={resource.name}
                           category={resource.category}
                           languages={resource.languages}
-                          isPaid={resource.paid}
+                          isFree={isUndefined(resource.free) ? !resource.paid : resource.free}
                           className={styles.resourceCard}
                         />
                       ))}
@@ -311,6 +227,32 @@ function Resources() {
           </section>,
         ]}
       />
+      <Modal
+        isOpen={isModalOpen}
+        screenReaderLabel="Login Modal"
+        onRequestClose={() => setIsModalOpen(false)}
+        className={CardStyles.CardModal}
+        childrenClassName={ModalStyles.unscrollableContainer}
+      >
+        <h2>Login to Proceed</h2>
+
+        <LoginForm
+          login={handleLogin}
+          onSuccess={handleLoginSuccess}
+          redirectFunction={() => {
+            setIsModalOpen(false);
+            router.push(router.asPath);
+          }}
+          buttonTheme="primary"
+        />
+
+        <p>
+          Forgot your password? Reset it&nbsp;
+          <Link href="/password_reset">
+            <a>here</a>
+          </Link>
+        </p>
+      </Modal>
     </div>
   );
 }

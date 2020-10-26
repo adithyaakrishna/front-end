@@ -19,7 +19,8 @@ import styles from './Select.module.css';
 Select.propTypes = {
   field: shape({
     name: string.isRequired,
-    value: oneOfType([string.isRequired, arrayOf(string.isRequired).isRequired]),
+    value: oneOfType([string, number, bool, arrayOf(string), arrayOf(number), arrayOf(bool)])
+      .isRequired,
   }).isRequired,
   form: shape({
     // TODO: Resolve why multiselects can end up with touched: { key: array }
@@ -127,16 +128,15 @@ export default function Select({
           value={value || ''}
         />
 
-        <ErrorMessage
-          name={name}
-          render={message => {
+        <ErrorMessage name={name}>
+          {message => {
             return hasErrors ? (
               <Alert className={styles.errorMessage} type="error">
                 {message}
               </Alert>
             ) : null;
           }}
-        />
+        </ErrorMessage>
       </div>
     </div>
   );
